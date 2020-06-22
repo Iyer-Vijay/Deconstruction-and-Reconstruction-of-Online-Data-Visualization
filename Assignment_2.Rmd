@@ -1,0 +1,119 @@
+---
+title: "Assignment 2"
+subtitle: "Deconstruct, Reconstruct Web Report"
+author: "Vijay Lakshmanan Iyer (s3797863)"
+output: html_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+# Do not change these settings!
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+### {.tabset}
+
+#### Original
+
+<br>
+<center>
+<img src="Faulty.png" width="80%">
+</center>
+<center>*Source: By Johannes Friedrich, Mengpin Ge and Andrew Pickens (2017, April 11).*</center>
+<br>
+
+**Objective**
+
+Objective: The objective of the visualization is to educate the general audience on world's top greenhouse gas (from different sectors) emitting countries for the year 2013.
+
+Target Audience: General public all around the globe.
+
+Issues with the chart:
+
+- Pie chart is not a good representation for numbers, as pie chart uses angle for representation. Though the graph is interactive, it is very difficult to compare the values of each countries in a single view.
+- Use of pie chart cramps up the value and becomes even more difficult to find out the Co2 Emission for certain sectors for some countries. To go in detail, looking at the pie chart, only Industrial sector is visible to naked eye for China, for rest it is very negligible and the Waste Sector cannot be found without clicking the smallest pie.
+- As the blog is about world's top 10 greenhouse gas emitting countries, bombarding the visualization with too much information will confuse and deviate the user from the main underlying story. This pie chart makes the mistake of populating countries other than top 10. Instead of showing every country, a single value of rest of world would be good enough to compare the emission of top 10 vs rest of the world.
+
+**Reference**
+
+* Johannes Friedrich, Mengpin Ge and Andrew Pickens (2017, April 11). This Interactive Chart Explains World’s Top 10 Emitters, and How They’ve Changed.   
+https://www.wri.org/blog/2017/04/interactive-chart-explains-worlds-top-10-emitters-and-how-theyve-changed
+
+#### Code
+
+The following code was used to fix the issues identified in the original. 
+
+```{r}
+#Importing Packages
+#Importing Packages
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(tidyr)
+
+
+#Importing the csv file
+co2_df <- read_csv('WorldResourcesInstituteCAIT.csv',skip = 1)
+
+#Renaming few countries names
+co2_df$Country[co2_df$Country == "Russian Federation"] <- "Russia"
+co2_df$Country[co2_df$Country == 'European Union (28)'] <- 'EU'
+co2_df$Country[co2_df$Country == 'United States'] <- 'USA'
+
+#Calculating total Co2 Emission Country wise
+co2_df <- co2_df %>% mutate(`TOTAL CO2 EMISSION` = round(rowSums(.[3:5]),2))
+co2_df <- co2_df %>% mutate(total = round(rowSums(.[3:5]),2))
+
+#Arranging the countries in the descending order of their co2 emission
+co2_df <- co2_df %>% arrange(desc(total))
+
+#removing first row, which is for the entire world
+co2_df <- co2_df[-1,]
+
+#Melting the dataframe to have single column of sector and their corresponding values
+co2_df_long <- co2_df %>% gather("Sector","Co2_Emission",c("Energy (MtCO2e)","Industrial Processes (MtCO2e)","Agriculture (MtCO2e)","Waste (MtCO2e)","TOTAL CO2 EMISSION"))
+
+#Creating a dataframe for rest of the world
+co2_df_rest <- co2_df_long %>% group_by(Sector) %>% top_n(-182,total)
+
+#Creating a dataframe for top 10 countries
+co2_df_top10 <- co2_df_long %>% group_by(Sector) %>%  top_n(10, total) %>% select(c('Country','Year','Sector','Co2_Emission'))
+
+#Creating a summary for rest of the world
+co2_df_rest <- co2_df_rest %>% group_by(Sector) %>% summarise(Co2_Emission = sum(Co2_Emission))
+co2_df_rest$Country = 'Rest of the world'
+co2_df_rest$Year = 2013
+
+#Combining the two dataframe
+co2_df <- dplyr::bind_rows(co2_df_top10,co2_df_rest)
+
+#Creating an order for levels
+co2_df$Sector <- factor(co2_df$Sector,levels = c("Energy (MtCO2e)","Industrial Processes (MtCO2e)","Agriculture (MtCO2e)","Waste (MtCO2e)","TOTAL CO2 EMISSION"))
+
+#Plotting the graph
+fig <-ggplot(co2_df,aes(x=Country,y=Co2_Emission, fill=Sector)) +
+  geom_bar(position = "stack",stat="identity") +
+  facet_grid(.~Sector,scales = 'free') +
+  labs(y="CO2 Emission Sector wise",
+       title = "Top 10 Country (by TOTAL CO2 emission) and their CO2 emission Sector wise\n2013") +
+  scale_fill_brewer(palette = "Dark2") +
+  theme(legend.position = "top") +
+  coord_flip()
+
+```
+
+**Data Reference**
+
+CAIT Climate Data Explorer  
+http://cait.wri.org/historical/Country%20GHG%20Emissions?indicator%5B%5D=Energy&indicator%5B%5D=Industrial%20Processes&indicator%5B%5D=Agriculture&indicator%5B%5D=Waste&year%5B%5D=2013&sortIdx=NaN&sortDir=desc&chartType=geo
+
+#### Reconstruction
+
+The following plot fixes the main issues in the original.
+
+<br>
+<center>
+<img src="Co2.png" width="120%">
+</center>
+<br>
+
